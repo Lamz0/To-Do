@@ -1,0 +1,36 @@
+pipeline {
+    agent any
+    environment {
+        EC2_IP = '34.226.124.126'
+        EC2_USER = 'ubuntu'
+    }
+    stages {
+        stage('Checkout') {
+            steps {
+                git branch: 'main', url: 'https://github.com/Lamz0/To-Do.git'
+            }
+        }
+        stage('Build') {
+            steps {
+                cd todo
+                npm install
+                npm run build
+            }
+        }
+        stage('Deploy') {
+            steps {
+                sshagent(['credential-id']) {
+                    sh """
+                    scp -r /todo/build ${EC2_USER}@${EC2_IP}:/home/${EC2_USER}/react-app
+                    ssh ${EC2_USER}@${EC2_IP} << EOF
+                    sudo rm -rf /var/www/html/*
+                    sudo cp -r /home/${EC2_USER}/react-app/* /var/www/html/
+                    sudo systemctl restart nginx
+                    EOF
+                    """
+                }
+            }
+        }
+
+    }
+}
